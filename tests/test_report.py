@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from analysis.report import ResearchReport
 from engine.backtest import BacktestResult, EquityPoint, Trade
+from research.returns import PeriodicMetricConfig
 from research.statistics import sharpe_ratio, sortino_ratio
 
 
@@ -204,6 +205,44 @@ class TestResearchReportRiskMetrics(unittest.TestCase):
         self.assertAlmostEqual(
             report.sortino,
             expected,
+        )
+
+    def test_periodic_config_gap_tolerance_is_forwarded(self):
+        from unittest.mock import patch
+
+        result = self.make_hourly_result()
+        config = PeriodicMetricConfig(
+            interval_seconds=3600,
+            gap_tolerance=2.5,
+        )
+
+        with patch(
+            "analysis.report.periodic_sharpe",
+            return_value=1.23,
+        ) as mock_sharpe, patch(
+            "analysis.report.periodic_sortino",
+            return_value=0.45,
+        ) as mock_sortino:
+            report = ResearchReport.from_backtest(
+                result,
+                periodic_config=config,
+            )
+
+        self.assertAlmostEqual(report.sharpe, 1.23)
+        self.assertAlmostEqual(report.sortino, 0.45)
+
+        mock_sharpe.assert_called_once()
+        self.assertEqual(mock_sharpe.call_args.args[1], 3600)
+        self.assertEqual(
+            mock_sharpe.call_args.kwargs["gap_tolerance"],
+            2.5,
+        )
+
+        mock_sortino.assert_called_once()
+        self.assertEqual(mock_sortino.call_args.args[1], 3600)
+        self.assertEqual(
+            mock_sortino.call_args.kwargs["gap_tolerance"],
+            2.5,
         )
 
     def test_trade_level_metrics_are_preserved_separately(self):

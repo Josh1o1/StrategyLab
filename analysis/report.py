@@ -157,10 +157,12 @@ class ResearchReport:
                     time_series_sharpe = periodic_sharpe(
                         normalized_points,
                         interval_seconds,
+                        gap_tolerance=gap_tolerance,
                     )
                     time_series_sortino = periodic_sortino(
                         normalized_points,
                         interval_seconds,
+                        gap_tolerance=gap_tolerance,
                     )
 
         return cls(
