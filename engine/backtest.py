@@ -37,6 +37,7 @@ class EquityPoint:
     equity: float
     trade_pnl: float
     cumulative_pnl: float
+    mark_to_market_equity: float = 0.0
 
 
 @dataclass
@@ -400,7 +401,26 @@ class BacktestEngine:
                         pending_reason = setup.reason
                         pending_age = 0
 
-            # 5. Exactly one realized-equity observation per bar.
+            # 5. Record both realized/cash equity and mark-to-market equity.
+            #
+            # Realized equity excludes unrealized P&L.
+            # MTM equity values an open position at the completed bar close.
+            mtm_equity = self.equity
+
+            if position is not None and position.is_open:
+                if position.direction == "long":
+                    unrealized_pnl = (
+                        bar.close - position.entry_price
+                    ) * position.size
+                elif position.direction == "short":
+                    unrealized_pnl = (
+                        position.entry_price - bar.close
+                    ) * position.size
+                else:
+                    raise ValueError("Invalid position direction")
+
+                mtm_equity += unrealized_pnl
+
             equity_curve.append(
                 EquityPoint(
                     time=bar.time,
@@ -409,6 +429,7 @@ class BacktestEngine:
                     cumulative_pnl=(
                         self.equity - self.starting_equity
                     ),
+                    mark_to_market_equity=mtm_equity,
                 )
             )
 
